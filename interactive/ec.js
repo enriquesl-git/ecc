@@ -2,13 +2,13 @@
 
     $.ec = {
         reals: {},
-        modk: {},
+        modk: {}
     };
 
     var colors = {
         red: "#cb4b4b",
         yellow: "#edc240",
-        blue: "#afd8f8",
+        blue: "#afd8f8"
     };
 
     /* https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/cbrt#Polyfill */
@@ -196,12 +196,68 @@
         return sortUnique( roots );
     };
 
-    $.ec.Base.prototype.addPoints = function( p0, p1 ) {
+    $.ec.Base.prototype.modulus = function( p ) {
         throw new Error( "must override" );
     };
 
-    $.ec.Base.prototype.negPoint = function( p ) {
+    $.ec.Base.prototype.inverseOf = function( p ) {
         throw new Error( "must override" );
+    };
+
+    $.ec.Base.prototype.getSlope = function( p1, p2 ) {
+        var [ x1, y1 ] = p1;
+        var [ x2, y2 ] = p2;
+
+        var m;
+        if( x1 !== x2 ) {
+            // Two distinct points.
+            m = ( y1 - y2 ) * this.inverseOf( x1 - x2 );
+        }
+        else if( y1 !== -y2 ) {  // Then, y1 === y2 !== 0
+            // The points are the same, but the line is not vertical.
+            m = ( 3 * x1 * x2 + this.a ) * this.inverseOf( y1 + y2 );
+        }
+        else {
+            // The points are not the same, or roots, and the line is vertical.
+            return NaN;
+        }
+
+        // m can be either a negative or a positive number (for example, if we
+        // have k = 7, m = -1 and m = 6 are equivalent). Technically, it does
+        // not make any difference. Choose the one with the lowest absolute
+        // value, as this number will produce fewer lines, resulting in a nicer
+        // plot.
+
+        return this.modulus( m );
+    };
+
+    $.ec.Base.prototype.negPoint = function( p ) {
+        return [ p[ 0 ], -p[ 1 ] ];
+    };
+
+    $.ec.Base.prototype.addPoints = function( p1, p2 ) {
+        // Returns the result of adding point p1 to point p2, according to the
+        // group law for elliptic curves. The point at infinity is represented
+        // as null.
+
+        if( p1 === null ) {
+            return p2;
+        }
+        if( p2 === null ) {
+            return p1;
+        }
+
+        var m = this.getSlope( p1, p2 );
+
+        if ( !isFinite ( m ) ) {
+            return null;
+        }
+
+        var x3 = m * m - p1[ 0 ] - p2[ 0 ];
+        var y3 = m * ( p1[ 0 ] - x3 ) - p1[ 1 ];
+
+        return [ this.modulus( x3 ), 
+                 this.modulus( y3 ) ];
     };
 
     $.ec.Base.prototype.mulPoint = function( n, p ) {
@@ -336,20 +392,6 @@
         this.plotRange = this.getPlotRange();
     };
 
-    $.ec.Base.prototype.redraw = function() {
-        var data = this.getPlotData();
-        var axes = this.plot.getAxes();
-
-        axes.xaxis.options.min = this.plotRange.xMin;
-        axes.xaxis.options.max = this.plotRange.xMax;
-        axes.yaxis.options.min = this.plotRange.yMin;
-        axes.yaxis.options.max = this.plotRange.yMax;
-
-        this.plot.setData( data );
-        this.plot.setupGrid();
-        this.plot.draw();
-    };
-
     $.ec.Base.prototype.updateResults = function() {
         var getTerm = function( value, suffix ) {
             if( value > 0 ) {
@@ -370,6 +412,20 @@
 
         this.singularWarning.css( "display",
                                   this.singular ? "block" : "none" );
+    };
+
+    $.ec.Base.prototype.redraw = function() {
+        var data = this.getPlotData();
+        var axes = this.plot.getAxes();
+
+        axes.xaxis.options.min = this.plotRange.xMin;
+        axes.xaxis.options.max = this.plotRange.xMax;
+        axes.yaxis.options.min = this.plotRange.yMin;
+        axes.yaxis.options.max = this.plotRange.yMax;
+
+        this.plot.setData( data );
+        this.plot.setupGrid();
+        this.plot.draw();
     };
 
     $.ec.Base.prototype.update = function() {
@@ -462,52 +518,12 @@
         }
     };
 
-    $.ec.reals.Base.prototype.addPoints = function( p1, p2 ) {
-        // Returns the result of adding point p1 to point p2, according to the
-        // group law for elliptic curves. The point at infinity is represented
-        // as null.
-
-        if( p1 === null ) {
-            return p2;
-        }
-        if( p2 === null ) {
-            return p1;
-        }
-
-        var x1 = p1[ 0 ];
-        var y1 = p1[ 1 ];
-        var x2 = p2[ 0 ];
-        var y2 = p2[ 1 ];
-        var m;
-
-        if( x1 !== x2 ) {
-            // Two distinct points.
-            m = ( y1 - y2 ) / ( x1 - x2 );
-        }
-        else {
-            if( y1 === 0 && y2 === 0 ) {
-                // This may only happen if p1 = p2 is a root of the elliptic
-                // curve, hence the line is vertical.
-                return null;
-            }
-            else if( y1 === y2 ) {
-                // The points are the same, but the line is not vertical.
-                m = ( 3 * x1 * x1 + this.a ) / y1 / 2;
-            }
-            else {
-                // The points are the same and the line is vertical.
-                return null;
-            }
-        }
-
-        var x3 = m * m - x1 - x2;
-        var y3 = m * ( x1 - x3 ) - y1;
-
-        return [ x3, y3 ];
+    $.ec.reals.Base.prototype.modulus = function( m ) {
+        return m;
     };
 
-    $.ec.reals.Base.prototype.negPoint = function( p ) {
-        return [ p[ 0 ], -p[ 1 ] ];
+    $.ec.reals.Base.prototype.inverseOf = function( n ) {
+        return (1 / n);
     };
 
     $.ec.reals.Base.prototype.getPlotRange = function( points ) {
@@ -535,7 +551,7 @@
             // stationaryPoints contains only the points above the x axis.
             var p = this.stationaryPoints[ i ];
             points.push( p );
-            points.push([ p[ 0 ], -p[ 1 ] ]);
+            points.push( this.negPoint( p ) );
         }
 
         if( this.roots.length === 1 && this.stationaryPoints.length === 0 ) {
@@ -584,7 +600,7 @@
             // elliptic curves), this time left-to-right.
             for( var i = points.length - 2; i >= start; i -= 1 ) {
                 var p = points[ i ];
-                points.push([ p[ 0 ], -p[ 1 ] ]);
+                points.push( curve.negPoint( p ) );
             }
 
             if( close ) {
@@ -611,23 +627,20 @@
     };
 
     $.ec.reals.Base.prototype.getLinePoints = function( p, q ) {
-        var m = ( p[ 1 ] - q[ 1 ] ) / ( p[ 0 ] - q[ 0 ] );
-
-        if( isNaN( m ) ) {
-            // We are in the case p === q.
-            m = ( 3 * p[ 0 ] * p[ 0 ] + this.a ) / p[ 1 ] / 2;
-        }
+        var x = p[ 0 ];
+        var y = p[ 1 ];
+        var m = this.getSlope( p, q );
 
         if( !isFinite( m ) ) {
             // This is a vertical line and p[ 0 ] === q[ 0 ].
-            return [ [ p[ 0 ], this.plotRange.yMin ],
-                     [ p[ 0 ], this.plotRange.yMax ] ];
+            return [ [ x, this.plotRange.yMin ],
+                     [ x, this.plotRange.yMax ] ];
         }
 
         return [ [ this.plotRange.xMin,
-                   m * ( this.plotRange.xMin - p[ 0 ] ) + p[ 1 ] ],
+                   m * ( this.plotRange.xMin - x ) + y ],
                  [ this.plotRange.xMax,
-                   m * ( this.plotRange.xMax - p[ 0 ] ) + p[ 1 ] ] ];
+                   m * ( this.plotRange.xMax - x ) + y ] ];
     };
 
     $.ec.reals.Base.prototype.getPlotData = function() {
@@ -783,7 +796,7 @@
 
         if( this.r !== null ) {
             points.push( this.r );
-            points.push([ this.r[ 0 ], -this.r[ 1 ] ]);
+            points.push( this.negPoint( this.r ) );
         }
 
         return $.ec.reals.Base.prototype.getPlotRange.call( this, points );
@@ -797,7 +810,7 @@
             data.push({
                 color: colors.red,
                 data: [ this.r,
-                        [ this.r[ 0 ], -this.r[ 1 ] ] ],
+                        this.negPoint( this.r ) ],
                 lines: { show: true }
             });
             data.push({
@@ -808,7 +821,7 @@
         }
 
         data.push({
-            color: "#edc240",
+            color: colors.yellow,
             data: linePoints,
             lines: { show: true }
         });
@@ -1030,9 +1043,10 @@
     $.ec.modk.Base.prototype.hasPoint = function( x, y ) {
         // Returns true if the point x,y belongs to the curve.
 
-        for( var i = 0; i < this.curvePoints.length; i += 1 ) {
-            var p = this.curvePoints[ i ];
-            if( p[ 0 ] === x && p[ 1 ] === y ) {
+        var yCandidates = this.getY( x );
+
+        for( var i = 0; i < yCandidates.length; i += 1 ) {
+            if ( yCandidates[ i ] === y ) {
                 return true;
             }
         }
@@ -1040,15 +1054,27 @@
         return false;
     };
 
-    $.ec.modk.Base.prototype.inverseOf = function( n ) {
-        n = ( +n ) % this.k;
+    $.ec.modk.Base.prototype.modulus = function( m ) {
+        m = ( +m ) % this.k;
 
-        if( n < 0 ) {
-            n = n + this.k;
+        var mm;
+        // For negative m
+        mm = m + this.k;
+        if( mm < -m ) {
+            return mm;
         }
+        // For positive m
+        mm = m - this.k;
+        if( -mm < m ) {
+            return mm;
+        }
+        
+        return m;
+    };
 
+    $.ec.modk.Base.prototype.inverseOf = function( n ) {
         for( var m = 0; m < this.k; m += 1 ) {
-            if( ( n * m ) % this.k === 1 ) {
+            if( this.modulus( n * m ) === 1 ) {
                 return m;
             }
         }
@@ -1056,68 +1082,11 @@
         return NaN;
     };
 
-    $.ec.modk.Base.prototype.addPoints = function( p1, p2 ) {
-        // Returns the result of adding point p1 to point p2, according to the
-        // group law for elliptic curves. The point at infinity is represented
-        // as null.
-
-        if( p1 === null ) {
-            return p2;
-        }
-        if( p2 === null ) {
-            return p1;
-        }
-
-        var x1 = p1[ 0 ];
-        var y1 = p1[ 1 ];
-        var x2 = p2[ 0 ];
-        var y2 = p2[ 1 ];
-        var m;
-
-        if( x1 !== x2 ) {
-            // Two distinct points.
-            m = ( y1 - y2 ) * this.inverseOf( x1 - x2 );
-        }
-        else {
-            if( y1 === 0 && y2 === 0 ) {
-                // This may only happen if p1 = p2 is a root of the elliptic
-                // curve, hence the line is vertical.
-                return null;
-            }
-            else if( y1 === y2 ) {
-                // The points are the same, but the line is not vertical.
-                m = ( 3 * x1 * x1 + this.a ) * this.inverseOf( 2 * y1 );
-            }
-            else {
-                // The points are not the same and the line is vertical.
-                return null;
-            }
-        }
-
-        var x3 = ( m * m - x1 - x2 ) % this.k;
-        var y3 = ( m * ( x1 - x3 ) - y1 ) % this.k;
-
-        if( x3 < 0 ) {
-            x3 += this.k;
-        }
-        if( y3 < 0 ) {
-            y3 += this.k;
-        }
-
-        return [ x3, y3 ];
-    };
-
-    $.ec.modk.Base.prototype.negPoint = function( p ) {
-        return [ p[ 0 ], this.k - p[ 1 ] ];
-    };
-
     $.ec.modk.Base.prototype.getPlotRange = function( points ) {
         // Finds a range for the x-axis and the y-axis. This range must:
         //
         // 1. show all the given points (if any);
-        // 2. show the most interesting points of the curve (stationary points
-        //    and roots);
-        // 3. be proportional: i.e. the x-length and the y-length must be the
+        // 2. be proportional: i.e. the x-length and the y-length must be the
         //    same.
 
         if( typeof points === "undefined" ) {
@@ -1127,8 +1096,9 @@
             points = points.slice( 0 );
         }
 
-        points.push([ 0, 0 ]);
-        points.push([ this.k - 1, this.k - 1 ]);
+        var box = Math.floor (this.k / 2);
+        points.push([ 0 - box, 0 - box ]);
+        points.push([ this.k - 1 - box, this.k - 1 - box ]);
 
         return $.ec.Base.prototype.getPlotRange.call( this, points );
     };
@@ -1139,11 +1109,12 @@
         // points in case of discontinuities.
 
         var points = [];
+        var box = Math.floor( this.k / 2 );
 
-        for( var x = 0; x < this.k; x += 1 ) {
-            for( var y = 0; y < this.k; y += 1 ) {
-                if( ( y * y - x * x * x - this.a * x - this.b ) % this.k
-                        === 0 ) {
+        for( var x = 0 - box; x < this.k - box; x += 1 ) {
+            var xTerm = x * (x * x + this.a) + this.b;
+            for( var y = 0 - box; y < this.k - box; y += 1 ) {
+                if( 0 === ( y * y - xTerm) % this.k ) {
                     points.push([ x, y ]);
                 }
             }
@@ -1153,86 +1124,65 @@
     };
 
     $.ec.modk.Base.prototype.getLinePoints = function( p, q ) {
-        var m = ( p[ 1 ] - q[ 1 ] ) * this.inverseOf( p[ 0 ] - q[ 0 ] );
+        var x = p[ 0 ];
+        var y = p[ 1 ];
+        var m = this.getSlope( p, q );
 
-        if( isNaN( m ) ) {
-            if( p[ 1 ] === q[ 1 ] ) {
-                // We are in the case p === q.
-                m = ( 3 * p[ 0 ] * p[ 0 ] + this.a ) *
-                    this.inverseOf( 2 * p[ 1 ] );
-            }
-            else {
-                // This is a vertical line.
-                return [ [ p[ 0 ], this.plotRange.yMin ],
-                         [ p[ 0 ], this.plotRange.yMax ] ];
-            }
+        if( !isFinite( m ) ) {
+            // This is a vertical line.
+            return [ [ x, this.plotRange.yMin ],
+                     [ x, this.plotRange.yMax ] ];
         }
 
         if( m === 0 ) {
             // This is a horizontal line and p[ 1 ] === q[ 1 ].
-            return [ [ this.plotRange.xMin, p[ 1 ] ],
-                     [ this.plotRange.xMax, p[ 1 ] ] ];
+            return [ [ this.plotRange.xMin, y ],
+                     [ this.plotRange.xMax, y ] ];
         }
 
-        m %= this.k;
-
-        // m can be either a negative or a positive number (for example, if we
-        // have k = 7, m = -1 and m = 6 are equivalent). Technically, it does
-        // not make any difference. Choose the one with the lowest absolute
-        // value, as this number will produce fewer lines, resulting in a nicer
-        // plot.
-        if( m < 0 && -m > m + this.k ) {
-            m += this.k;
-        }
-        else if( m > 0 && -m < m - this.k ) {
-            m -= this.k;
-        }
-
-        var y;
-        var x;
-        var q = p[ 1 ] - m * p[ 0 ];
-        var points = [];
+        var q = y - m * x;
 
         // Find the q corresponding to the "leftmost" line. This is the q that
-        // when used in the equation y = m * x + q and x = 0 gives 0 <= y < k.
-        while( q >= this.k ) {
-            q -= this.k;
-        }
-        while( q < 0 ) {
-            q += this.k;
-        }
+        // when used in the equation y = m * x + q, and x = xMin, gives 
+        // xMin <= y < xMax.
+        x = this.plotRange.xMin;
+        y = this.modulus( m * x + q );
+        q = y - m * x;
 
-        points.push([ this.plotRange.xMin, m * this.plotRange.xMin + q ]);
-
+        var points = [];
+        points.push([ x, y ]);
         do {
             if( m > 0 ) {
                 // The line has a positive slope; find the coordinate of the
                 // point having the highest ordinate. If the line equation is:
                 // y = m * x + q, then the point coordinate is given by:
                 // k = m * x + q.
-                y = this.k;
+
+                y = this.plotRange.yMax;
             }
             else {
                 // Slope is negative; find the coordinate of the point having
                 // the lowest ordinate. If the line equation is: y = m * x + q,
                 // then the point coordinate is given by: 0 = m * x + q.
-                y = 0;
+
+                y = this.plotRange.yMin;
             }
-
             x = ( y - q ) / m;
-
             points.push([ x, y ]);
+
             points.push( null );
 
-            points.push([ x, y ? 0 : this.k ]);
-
             if( m > 0 ) {
+                y = this.plotRange.yMin;
                 q -= this.k;
             }
             else {
+                y = this.plotRange.yMax;
                 q += this.k;
             }
-        } while( x < this.k );
+            points.push([ x, y ]);
+
+        } while( x < this.plotRange.xMax );
 
         points.push([ this.plotRange.xMax, m * this.plotRange.xMax + q ]);
 
@@ -1408,7 +1358,7 @@
             data.push({
                 color: colors.red,
                 data: [ this.r,
-                        [ this.r[ 0 ], this.k - this.r[ 1 ] ] ],
+                        this.negPoint( this.r ) ],
                 lines: { show: true }
             });
             data.push({
