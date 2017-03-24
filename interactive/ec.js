@@ -253,8 +253,8 @@
             return null;
         }
 
-        var x3 = m * m - p1[ 0 ] - p2[ 0 ];
-        var y3 = m * ( p1[ 0 ] - x3 ) - p1[ 1 ];
+        var x3 = m * m - p1[ 0 ] - p2[ 0 ];         // m*m = x1 + x2 + x3
+        var y3 = m * ( p1[ 0 ] - x3 ) - p1[ 1 ];    // m = (y1 + y3)/(x1 - x3)
 
         return [ this.modulus( x3 ), 
                  this.modulus( y3 ) ];
@@ -627,8 +627,7 @@
     };
 
     $.ec.reals.Base.prototype.getLinePoints = function( p, q ) {
-        var x = p[ 0 ];
-        var y = p[ 1 ];
+        var [ x, y ] = p;
         var m = this.getSlope( p, q );
 
         if( !isFinite( m ) ) {
@@ -638,9 +637,9 @@
         }
 
         return [ [ this.plotRange.xMin,
-                   m * ( this.plotRange.xMin - x ) + y ],
+                   y - m * ( x - this.plotRange.xMin ) ],
                  [ this.plotRange.xMax,
-                   m * ( this.plotRange.xMax - x ) + y ] ];
+                   y  - m * ( x - this.plotRange.xMax ) ] ];
     };
 
     $.ec.reals.Base.prototype.getPlotData = function() {
@@ -1033,7 +1032,7 @@
         for( var i = 0; i < this.curvePoints.length; i += 1 ) {
             var p = this.curvePoints[ i ];
             if( p[ 1 ] === y ) {
-                result.push( p[ 2 ] );
+                result.push( p[ 0 ] );
             }
         }
 
@@ -1055,25 +1054,26 @@
     };
 
     $.ec.modk.Base.prototype.modulus = function( m ) {
-        m = ( +m ) % this.k;
+        // Returns the modular equivalent in the range {modMin, modMax}.
 
-        var mm;
-        // For negative m
-        mm = m + this.k;
-        if( mm < -m ) {
-            return mm;
-        }
-        // For positive m
-        mm = m - this.k;
-        if( -mm < m ) {
-            return mm;
-        }
-        
+        m %= this.k;
+
+         // For positive m:
+        while ( m > this.modMax ) {
+            m -= this.k;
+        };
+
+        // For negative m:
+        while ( m < this.modMin ) {
+            m += this.k;
+        };
+
         return m;
     };
 
     $.ec.modk.Base.prototype.inverseOf = function( n ) {
-        for( var m = 0; m < this.k; m += 1 ) {
+        // Modular inverse, used to get the slope for point addition
+        for( var m = this.modMin; m <= this.modMax; m += 1 ) {
             if( this.modulus( n * m ) === 1 ) {
                 return m;
             }
@@ -1096,25 +1096,25 @@
             points = points.slice( 0 );
         }
 
-        var box = Math.floor (this.k / 2);
-        points.push([ 0 - box, 0 - box ]);
-        points.push([ this.k - 1 - box, this.k - 1 - box ]);
+        points.push([ this.modMin, this.modMin ]);
+        points.push([ this.modMax, this.modMax ]);
 
         return $.ec.Base.prototype.getPlotRange.call( this, points );
     };
 
     $.ec.modk.Base.prototype.getCurvePoints = function() {
-        // Returns a list of x,y points belonging to the curve from xMin to
-        // xMax. The resulting array is ordered and may contain some null
-        // points in case of discontinuities.
+        // Returns a list of x,y points belonging to the curve. 
+        // The resulting array is ordered.
 
         var points = [];
-        var box = Math.floor( this.k / 2 );
+        var xSide;
 
-        for( var x = 0 - box; x < this.k - box; x += 1 ) {
-            var xTerm = x * (x * x + this.a) + this.b;
-            for( var y = 0 - box; y < this.k - box; y += 1 ) {
-                if( 0 === ( y * y - xTerm) % this.k ) {
+        for( var x = this.modMin; x <= this.modMax; x += 1 ) {
+            xSide = x * (x * x + this.a) + this.b;
+            xSide = this.modulus( xSide );
+
+            for( var y = this.modMin; y <= this.modMax; y += 1 ) {
+                if( xSide === this.modulus( y * y) ) {
                     points.push([ x, y ]);
                 }
             }
@@ -1124,8 +1124,7 @@
     };
 
     $.ec.modk.Base.prototype.getLinePoints = function( p, q ) {
-        var x = p[ 0 ];
-        var y = p[ 1 ];
+        var [ x, y ] = p;
         var m = this.getSlope( p, q );
 
         if( !isFinite( m ) ) {
@@ -1293,7 +1292,7 @@
         xInput.data( "prev", p[ 0 ] );
         yInput.data( "prev", p[ 1 ] );
 
-        return [ p[ 0 ], p[ 1 ] ];
+        return p;
     };
 
     $.ec.modk.Base.prototype.getInputValues = function() {
@@ -1301,6 +1300,13 @@
 
         this.k = +this.kInput.val();
         this.prime = isPrime( this.k );
+
+        // Limits for all the modular values. 
+        // Setting modMin = 0 will make everything work in the usual way. 
+
+        this.modMin = -Math.floor( this.k / 2 );
+        // this.modMin = 0;
+        this.modMax = this.modMin + this.k - 1;
 
         // This must go here, rather than in recalculate(), because
         // fixPointCoordinates() depends on curvePoints.
