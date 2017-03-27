@@ -27,25 +27,25 @@
       <div id="plot" class="box"></div>
       <div class="box">
         <div id="form">
-          <div id="curve-coefficients" class="parameters">
-            <p>Curve:</p>
-            <div class="parameter curve-coefficient"><label for="coefficient-a">a</label><input id="coefficient-a" name="a" value="2" type="number" step="1"></div>
-            <div class="parameter curve-coefficient"><label for="coefficient-b">b</label><input id="coefficient-b" name="b" value="3" type="number" step="1"></div>
-          </div>
           <div id="field-coefficients" class="parameters">
             <p>Field:</p>
             <div class="parameter curve-coefficient"><label for="coefficient-p">p</label><input id="coefficient-p" name="p" value="97" type="number" step="1"></div>
             <div class="placeholder"></div>
           </div>
-          <div id="scalars" class="parameters">
-            <p><em>n</em>:</p>
-            <div class="parameter multiplication-factor"><label for="scalar-n">n</label><input id="scalar-n" name="n" value="2" type="number" step="1"></div>
-            <div class="placeholder"></div>
+          <div id="curve-coefficients" class="parameters">
+            <p>Curve:</p>
+            <div class="parameter curve-coefficient"><label for="coefficient-a">a</label><input id="coefficient-a" name="a" value="2" type="number" step="1"></div>
+            <div class="parameter curve-coefficient"><label for="coefficient-b">b</label><input id="coefficient-b" name="b" value="3" type="number" step="1"></div>
           </div>
           <div id="point-p-coordinates" class="parameters">
             <p><em>P</em>:</p>
             <div class="parameter point-coordinate"><label for="point-p-x">x</label><input id="point-p-x" name="px" value="3" type="number" step="1"></div>
             <div class="parameter point-coordinate"><label for="point-p-y">y</label><input id="point-p-y" name="py" value="6" type="number" step="1"></div>
+          </div>
+          <div id="scalars" class="parameters">
+            <p><em>n</em>:</p>
+            <div class="parameter multiplication-factor"><label for="scalar-n">n</label><input id="scalar-n" name="n" value="2" type="number" step="1"></div>
+            <div class="placeholder"></div>
           </div>
           <div id="point-r-coordinates" class="parameters">
             <p><em>Q</em> = <em>n</em> &middot; <em>P</em>:</p>
@@ -63,8 +63,8 @@
       </div>
     </main>
     <footer>
-      <p>This tool was created for <a href="http://andrea.corbellini.name/2015/05/17/elliptic-curve-cryptography-a-gentle-introduction/">Elliptic Curve Cryptography: a gentle introduction</a>.</p>
-      <p>It's free software, released under the <a href="http://opensource.org/licenses/MIT">MIT license</a>, hosted on <a href="https://github.com/andreacorbellini/ecc">GitHub</a> and served by <a href="http://rawgit.com/">RawGit</a>.</p>
+      <p>This tool is adapted from the one created for <a href="http://andrea.corbellini.name/2015/05/17/elliptic-curve-cryptography-a-gentle-introduction/">Elliptic Curve Cryptography: a gentle introduction</a>.</p>
+      <p>It's free software, released under the <a href="http://opensource.org/licenses/MIT">MIT license</a>, hosted on <a href="https://github.com/enriquesl-git/ecc/tree/master/interactive">GitHub</a> and served by <a href="http://rawgit.com/">RawGit</a>.</p>
     </footer>
     <script type="text/javascript">
         $(function() {

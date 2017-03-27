@@ -207,19 +207,19 @@
     $.ec.Base.prototype.getSlope = function( p1, p2 ) {
         var [ x1, y1 ] = p1;
         var [ x2, y2 ] = p2;
-
         var m;
+
         if( x1 !== x2 ) {
             // Two distinct points.
             m = ( y1 - y2 ) * this.inverseOf( x1 - x2 );
         }
-        else if( y1 !== -y2 ) {  // Then, y1 === y2 !== 0
+        else if( y1 === y2 && y1 !== 0) {
             // The points are the same, but the line is not vertical.
-            m = ( 3 * x1 * x2 + this.a ) * this.inverseOf( y1 + y2 );
+            m = ( 3 * x1 * x1 + this.a ) * this.inverseOf( y1 + y1 );
         }
         else {
-            // The points are not the same, or roots, and the line is vertical.
-            return NaN;
+            // The points are roots or not the same, and the line is vertical.
+            return Infinity;
         }
 
         // m can be either a negative or a positive number (for example, if we
@@ -227,7 +227,6 @@
         // not make any difference. Choose the one with the lowest absolute
         // value, as this number will produce fewer lines, resulting in a nicer
         // plot.
-
         return this.modulus( m );
     };
 
@@ -248,13 +247,14 @@
         }
 
         var m = this.getSlope( p1, p2 );
-
         if ( !isFinite ( m ) ) {
-            return null;
+            return null; // Wouldn't be more correct [ Infinity, Infinity ] ?
         }
 
-        var x3 = m * m - p1[ 0 ] - p2[ 0 ];         // m*m = x1 + x2 + x3
-        var y3 = m * ( p1[ 0 ] - x3 ) - p1[ 1 ];    // m = (y1 + y3)/(x1 - x3)
+        var [ x1, y1 ] = p1;
+        var [ x2, y2 ] = p2;
+        var x3 = m * m - (x1 + x2);     // m*m = x1 + x2 + x3
+        var y3 = m * ( x1 - x3 ) - y1;  // m = (y1 + y3)/(x1 - x3)
 
         return [ this.modulus( x3 ), 
                  this.modulus( y3 ) ];
@@ -337,8 +337,13 @@
         }
 
         return {
-            xMin: xMin - xMargin, xMax: xMax + xMargin,
-            yMin: yMin - yMargin, yMax: yMax + yMargin
+            xMin: xMin - xMargin, 
+            xMax: xMax + xMargin, 
+            xRange: xMax - xMin, 
+
+            yMin: yMin - yMargin, 
+            yMax: yMax + yMargin, 
+            yRange: yMax - yMin
         }
     };
 
@@ -366,15 +371,13 @@
             label.css({ "display": "none" });
         }
         else {
-            var xScale = this.plotContainer.width() /
-                         ( this.plotRange.xMax - this.plotRange.xMin );
-            var yScale = this.plotContainer.width() /
-                         ( this.plotRange.yMax - this.plotRange.yMin );
+            var xScale = this.plotContainer.width() / this.plotRange.xRange;
+            var yScale = this.plotContainer.width() / this.plotRange.yRange;
 
             label.css({
                 "display": "block",
                 "left": xScale * ( p[ 0 ] - this.plotRange.xMin ) + 10 + "px",
-                "top": yScale * ( this.plotRange.yMax - p[ 1 ] ) + 10 + "px"
+                "top" : yScale * ( this.plotRange.yMax - p[ 1 ] ) + 10 + "px"
             });
         }
     };
@@ -572,8 +575,7 @@
 
         var points = [];
         var curve = this;
-        var step = ( this.plotRange.xMax - this.plotRange.xMin )
-                   / this.plotResolution;
+        var step = this.plotRange.xRange / this.plotResolution;
 
         var getPoints = function( xMin, xMax, close ) {
             // This function calculates the points of a continuous branch of
@@ -844,13 +846,6 @@
         $.ec.reals.Base.prototype.recalculate.call( this );
     };
 
-    $.ec.reals.PointAddition.prototype.redraw = function() {
-        $.ec.reals.Base.prototype.redraw.call( this );
-        this.setLabel( this.pLabel, this.p );
-        this.setLabel( this.qLabel, this.q );
-        this.setLabel( this.rLabel, this.r );
-    };
-
     $.ec.reals.PointAddition.prototype.updateResults = function() {
         $.ec.reals.Base.prototype.updateResults.call( this );
 
@@ -862,6 +857,13 @@
             this.rxInput.val( "Inf" );
             this.ryInput.val( "Inf" );
         }
+    };
+
+    $.ec.reals.PointAddition.prototype.redraw = function() {
+        $.ec.reals.Base.prototype.redraw.call( this );
+        this.setLabel( this.pLabel, this.p );
+        this.setLabel( this.qLabel, this.q );
+        this.setLabel( this.rLabel, this.r );
     };
 
     ///////////////////////////////////////////////////////////////////////////
@@ -967,12 +969,6 @@
         $.ec.reals.Base.prototype.recalculate.call( this );
     };
 
-    $.ec.reals.ScalarMultiplication.prototype.redraw = function() {
-        $.ec.reals.Base.prototype.redraw.call( this );
-        this.setLabel( this.pLabel, this.p );
-        this.setLabel( this.qLabel, this.q );
-    };
-
     $.ec.reals.ScalarMultiplication.prototype.updateResults = function() {
         $.ec.reals.Base.prototype.updateResults.call( this );
 
@@ -984,6 +980,12 @@
             this.qxInput.val( "Inf" );
             this.qyInput.val( "Inf" );
         }
+    };
+
+    $.ec.reals.ScalarMultiplication.prototype.redraw = function() {
+        $.ec.reals.Base.prototype.redraw.call( this );
+        this.setLabel( this.pLabel, this.p );
+        this.setLabel( this.qLabel, this.q );
     };
 
     ///////////////////////////////////////////////////////////////////////////
@@ -1079,7 +1081,7 @@
             }
         }
 
-        return NaN;
+        return Infinity;
     };
 
     $.ec.modk.Base.prototype.getPlotRange = function( points ) {
@@ -1106,8 +1108,8 @@
         // Returns a list of x,y points belonging to the curve. 
         // The resulting array is ordered.
 
-        var points = [];
         var xSide;
+        var points = [];
 
         for( var x = this.modMin; x <= this.modMax; x += 1 ) {
             xSide = x * (x * x + this.a) + this.b;
@@ -1125,66 +1127,83 @@
 
     $.ec.modk.Base.prototype.getLinePoints = function( p, q ) {
         var [ x, y ] = p;
-        var m = this.getSlope( p, q );
+        var points = [];
+        var boints = []; // Transposed points for inverse slope
 
+        var m = this.getSlope( p, q );
         if( !isFinite( m ) ) {
             // This is a vertical line.
-            return [ [ x, this.plotRange.yMin ],
-                     [ x, this.plotRange.yMax ] ];
+            return [[ x, this.modMin ], 
+                    [ x, this.modMax ]];
         }
-
         if( m === 0 ) {
             // This is a horizontal line and p[ 1 ] === q[ 1 ].
-            return [ [ this.plotRange.xMin, y ],
-                     [ this.plotRange.xMax, y ] ];
+            return [[ this.modMin, y ], 
+                    [ this.modMax, y ]];
         }
 
-        var q = y - m * x;
+        // There is a simple way to take into account slopes less than 1, 
+        // that is to get the reciproc of the modular inverse of slope.
+        // Instead of taking the reciproc, we can just permute x and y,
+        // so that the rest of the algorithm remains the same. 
+        var inverseSlope = false;
+        minv = this.inverseOf( m );
+        // minv = 1 / minv;
+        if ( Math.abs( minv ) <= Math.abs( m ) ) {
+            inverseSlope = true;
+            m = minv;
+            [ y, x ] = p;
+        }
 
         // Find the q corresponding to the "leftmost" line. This is the q that
-        // when used in the equation y = m * x + q, and x = xMin, gives 
-        // xMin <= y < xMax.
-        x = this.plotRange.xMin;
+        // when used in the equation y = m * x + q, and x = modMin, 
+        // gives modMin <= y <= modMax.
+        var q = y - m * x;
+        x = this.modMin;
         y = this.modulus( m * x + q );
         q = y - m * x;
 
-        var points = [];
-        points.push([ x, y ]);
+        // Origin point of first line
+        points.push( [ x, y ] );
+        boints.push( [ y, x ] );
+
+        // Conditional values out of the loop
+        if ( m > 0 ) {
+            // Slope is positive; 
+            var yStart = this.modMin; 
+            var yEnd   = this.modMax;
+            var dq = this.k;
+        }
+        else {
+            // Slope is negative; 
+            var yStart = this.modMax; 
+            var yEnd   = this.modMin;
+            var dq = -this.k;
+        }
+        // Virtual origin of first line
+        x += ( yStart - y ) / m;
         do {
-            if( m > 0 ) {
-                // The line has a positive slope; find the coordinate of the
-                // point having the highest ordinate. If the line equation is:
-                // y = m * x + q, then the point coordinate is given by:
-                // k = m * x + q.
-
-                y = this.plotRange.yMax;
-            }
-            else {
-                // Slope is negative; find the coordinate of the point having
-                // the lowest ordinate. If the line equation is: y = m * x + q,
-                // then the point coordinate is given by: 0 = m * x + q.
-
-                y = this.plotRange.yMin;
-            }
-            x = ( y - q ) / m;
-            points.push([ x, y ]);
-
+            // End of line
+            x = ( yEnd - q ) / m;
+            points.push( [ x, yEnd ] );
+            boints.push( [ yEnd,  x] );
+            // Discontinuity between lines
             points.push( null );
+            boints.push( null );
+            // Origin of next line
+            points.push( [ x, yStart ] );
+            boints.push( [ yStart, x ] );
+            q -= dq;
+        } while( x < this.modMax );
+        // End point of last line
+        x = this.modMax;
+        y = m * x + q;
+        points.push( [ x, y ] );
+        boints.push( [ y, x ] );
 
-            if( m > 0 ) {
-                y = this.plotRange.yMin;
-                q -= this.k;
-            }
-            else {
-                y = this.plotRange.yMax;
-                q += this.k;
-            }
-            points.push([ x, y ]);
-
-        } while( x < this.plotRange.xMax );
-
-        points.push([ this.plotRange.xMax, m * this.plotRange.xMax + q ]);
-
+        if ( inverseSlope ) {
+            return boints;
+        }
         return points;
     };
 
@@ -1301,8 +1320,8 @@
         this.k = +this.kInput.val();
         this.prime = isPrime( this.k );
 
-        // Limits for all the modular values. 
-        // Setting modMin = 0 will make everything work in the usual way. 
+        // Limits for all the modular values. Setting modMin = 0 will make 
+        // everything work in the usual way of only positive modular values. 
 
         this.modMin = -Math.floor( this.k / 2 );
         // this.modMin = 0;
@@ -1399,13 +1418,6 @@
         $.ec.modk.Base.prototype.recalculate.call( this );
     };
 
-    $.ec.modk.PointAddition.prototype.redraw = function() {
-        $.ec.modk.Base.prototype.redraw.call( this );
-        this.setLabel( this.pLabel, this.p );
-        this.setLabel( this.qLabel, this.q );
-        this.setLabel( this.rLabel, this.r );
-    };
-
     $.ec.modk.PointAddition.prototype.updateResults = function() {
         $.ec.modk.Base.prototype.updateResults.call( this );
 
@@ -1417,6 +1429,13 @@
             this.rxInput.val( "Inf" );
             this.ryInput.val( "Inf" );
         }
+    };
+
+    $.ec.modk.PointAddition.prototype.redraw = function() {
+        $.ec.modk.Base.prototype.redraw.call( this );
+        this.setLabel( this.pLabel, this.p );
+        this.setLabel( this.qLabel, this.q );
+        this.setLabel( this.rLabel, this.r );
     };
 
     ///////////////////////////////////////////////////////////////////////////
@@ -1494,8 +1513,8 @@
             return 0;
         }
 
-        var n = 2;
-        var q = this.addPoints( this.p, this.p );
+        var n = 1;
+        var q = this.p;
 
         while( q !== null ) {
             q = this.addPoints( this.p, q );
@@ -1516,12 +1535,6 @@
         $.ec.modk.Base.prototype.recalculate.call( this );
     };
 
-    $.ec.modk.ScalarMultiplication.prototype.redraw = function() {
-        $.ec.modk.Base.prototype.redraw.call( this );
-        this.setLabel( this.pLabel, this.p );
-        this.setLabel( this.qLabel, this.q );
-    };
-
     $.ec.modk.ScalarMultiplication.prototype.updateResults = function() {
         $.ec.modk.Base.prototype.updateResults.call( this );
 
@@ -1535,6 +1548,12 @@
         }
 
         this.subgroupOrder.text( this.getSubgroupOrder() );
+    };
+
+    $.ec.modk.ScalarMultiplication.prototype.redraw = function() {
+        $.ec.modk.Base.prototype.redraw.call( this );
+        this.setLabel( this.pLabel, this.p );
+        this.setLabel( this.qLabel, this.q );
     };
 
 }( jQuery ));
