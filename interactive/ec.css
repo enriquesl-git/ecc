@@ -84,8 +84,8 @@ main .box {
 }
 
 main #plot {
-  width: 600px;
-  height: 600px;
+  width: 576px;
+  height: 576px;
 }
 
 main #form {
